@@ -21,15 +21,42 @@ namespace SEIDChecksum
         {
             TextBox textBox = sender as TextBox;
             label_IDLength.Text = $"({textBox.Text.Length})";
-            button_Calc.Enabled = textBox.Text.Length > 40;
+
+            setCalcEnable();
+        }
+
+        private void checkBoxs_CheckedChanged(object sender, EventArgs e)
+        {
+            setCalcEnable();
         }
 
         private void button_Calc_Click(object sender, EventArgs e)
         {
-            string input = textBox_ID.Text;
-            if (input.Length > 41) input = input.Substring(0, 41);
+            string input = textBox_ID.Text.Trim();
+            int index= input.IndexOf(' ');
+            while (index  > 0)
+            {
+                input = input.Remove(index, 1);
+                index = input.IndexOf(' ');
+            }
+            string header = string.Empty;
+            if (checkBox_hasHeader.Checked)
+            {
+                header = input.Substring(0, 8);
+                input = input.Remove(0, 8);
+            }
+            if (checkBox_hasChecksum.Checked) input = input.Remove(input.Length - 1);
+
+            textBox_ID.SelectAll();
+            textBox_ID.Focus();
+            textBox_IDWithChecksum.Text = header + input + luhn(input);
+        }
+
+        string luhn(string input)
+        {
             int sum = 0;
-            for (int i=0;i<input.Length;i++)
+            bool doubled = true;
+            for (int i = input.Length - 1; i >= 0; i--)
             {
                 char c = input[i];
                 int number;
@@ -37,12 +64,13 @@ namespace SEIDChecksum
                     number = 0;
                 else
                     number = Convert.ToByte(c) - '0';
-                if (0 == (i % 2))
+                if (doubled)
                     sum += digitalSum(number * 2);
                 else
                     sum += number;
+                doubled = !doubled;
             }
-            textBox_IDWithChecksum.Text = input + $"{(10 - sum % 10) % 10}";
+            return $"{(10 - sum % 10) % 10}";
         }
 
         int digitalSum(int number)
@@ -52,6 +80,20 @@ namespace SEIDChecksum
                 return number / 10 + number % 10;
             else
                 return number;
+        }
+
+        void setCalcEnable()
+        {
+            int minLength = 0;
+            if (checkBox_hasHeader.Checked) minLength += 8;
+            if (checkBox_hasChecksum.Checked) minLength += 1;
+            button_Calc.Enabled = textBox_ID.Text.Length > minLength;
+        }
+
+        private void textBox_ID_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            if (e.KeyChar == '\r' && button_Calc.Enabled)
+                button_Calc_Click(button_Calc, new EventArgs());
         }
     }
 }
